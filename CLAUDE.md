@@ -111,8 +111,9 @@ lives at `~/.local/share/reelay/release.jks` with its password in
 `~/.local/share/reelay/keystore-password` (both 0600), and is loaded into CI from
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
 `ANDROID_KEY_PASSWORD`. GitHub secrets cannot be read back, so the local copy and its
-1Password backup (document `REELAY_KEYSTORE`, password `REELAY_KEYSTORE_PASSWORD`, same
-scheme as deskremote) are the only recoverable copies. It is deliberately a different key
+1Password backup are the only recoverable copies. The backup was made 2026-08-30 in the
+Personal vault: document `REELAY_KEYSTORE` and password item `REELAY_KEYSTORE_PASSWORD`,
+same scheme as deskremote. It is deliberately a different key
 from deskremote's: one compromised key must not cover both apps.
 
 A debug build installed on a phone carries the debug key; the release APK will not install
