@@ -3,10 +3,11 @@
 Android share target that moves a public Instagram reel into TikTok's editor with the
 clip already loaded, so posting it to your TikTok Story is one tap.
 
-Neither app offers this. Instagram's share sheet only sends a link, TikTok only imports
-video files, and TikTok has no public API for stories. Reelay sits between the two: it
-downloads the reel at the quality Instagram itself plays, re-encodes it into a file every
-player times identically, and hands it to TikTok.
+Neither app offers this path. Instagram's share sheet only sends a link, TikTok's editor
+only imports video files, and TikTok has no public API for stories. If the same clip is
+already on TikTok, TikTok's own "Add to Story" is the shorter route; Reelay is for a reel
+that lives on Instagram. It downloads the reel at the quality Instagram itself plays,
+re-encodes it into a file every player times identically, and hands it to TikTok.
 
 ## Requirements
 
