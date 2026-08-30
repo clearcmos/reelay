@@ -130,7 +130,9 @@ the same `gradle` commands. Android Studio opens the project as a normal Gradle 
 | Refresh dependency lockfiles | `gradle dependencies :app:dependencies buildEnvironment :app:buildEnvironment --write-locks` |
 
 Dependency versions live in `gradle/libs.versions.toml`; resolved versions are locked in
-`*.lockfile` and the build fails on drift. Dependabot opens grouped update PRs.
+`*.lockfile` and the build fails on drift. Dependabot opens grouped update PRs; they
+arrive with a failing check until the lockfiles are refreshed on the branch (CLAUDE.md,
+"Dependency updates").
 
 CI runs lint, unit tests with the coverage gate, and a debug build on every push and pull
 request. Pushing a `v*` tag runs the release workflow, which builds a signed APK and

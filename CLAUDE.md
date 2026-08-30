@@ -62,6 +62,23 @@ Run inside `nix develop`:
 - House style: no emojis, hyphens instead of em dashes, factual README, no secrets or
   personal identifiers in tracked files.
 
+## Dependency updates
+
+Dependabot bumps `gradle/libs.versions.toml` but does not touch the Gradle lockfiles, so
+with strict locking every Gradle PR it opens fails CI with "Dependency version enforced by
+Dependency Locking" (observed on the first two PRs, 2026-08-30). That red check is the
+expected state, not a bug. To land one:
+
+1. `git fetch origin && git switch <dependabot branch>`
+2. `nix develop --command gradle dependencies :app:dependencies buildEnvironment :app:buildEnvironment --write-locks`
+3. Run the full verification (lint, tests, coverage gate, lint, assembleDebug) and fix
+   whatever the bump broke.
+4. Commit the lockfile diff on the branch and push; CI re-runs. Do not comment
+   `@dependabot rebase` afterwards, it would drop the lockfile commit.
+
+Actions PRs need no lockfile step. AGP major bumps are ignored in `dependabot.yml`; the AGP
+9 migration (Gradle 9, new Kotlin plugin wiring) is a deliberate change.
+
 ## Test exemptions
 
 Classes excluded from the Kover gate (`app/build.gradle.kts`), each verified on a device
@@ -266,6 +283,10 @@ Re-verify these before assuming they still hold; each is an external dependency.
   unavailable and `ByteBuffer.flip()` returns `Buffer`. `FakeHttpServer` (plain sockets)
   replaced the JDK server; `unitTests.isReturnDefaultValues = true` lets Media3's common
   classes load in tests.
+- 2026-08-30: Dependabot stays on for Gradle despite the lockfile gap. Its value is the
+  notification and the grouped diff; the lockfile refresh is one command and the red check
+  is honest. Renovate (which does update Gradle lockfiles) would need a GitHub App install
+  and was not worth it for a repo with one module.
 - 2026-08-30: Release builds are not minified. Media3 Transformer loads codecs
   reflectively and the APK is 17 MB either way; turning R8 on is a deliberate change with
   a device test, not a default.
