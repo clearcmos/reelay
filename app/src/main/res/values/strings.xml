@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Reelay</string>
+    <string name="share_target_label">TikTok Story</string>
+    <string name="main_intro">Open a reel in Instagram, tap Share, then choose TikTok Story. Reelay downloads the reel and opens it in TikTok\'s editor; tap Your Story there to post.\n\nTo try it without Instagram, paste a reel link below.</string>
+    <string name="link_hint">https://www.instagram.com/reel/&#8230;</string>
+    <string name="send">Send to TikTok</string>
+    <string name="close">Close</string>
+    <string name="status_starting">Starting</string>
+    <string name="status_fetching">Asking Instagram for the reel</string>
+    <string name="status_downloading">Downloading the video</string>
+    <string name="status_normalizing">Re-encoding for TikTok</string>
+    <string name="status_normalizing_progress">Re-encoding for TikTok (%1$d%%)</string>
+    <string name="status_handoff">Opening TikTok</string>
+    <string name="error_no_link">No Instagram reel link in what was shared.</string>
+    <string name="error_no_tiktok">TikTok is not installed.</string>
+    <string name="error_not_video">This post is a photo or a carousel, not a single video.</string>
+    <string name="error_no_media">Instagram did not expose the video: %1$s</string>
+    <string name="error_generic">Failed: %1$s</string>
+</resources>

@@ -1,0 +1,27 @@
+[versions]
+agp = "8.13.2"
+kotlin = "2.3.21"
+ktlint-plugin = "14.2.0"
+kover = "0.9.9"
+coroutines = "1.10.2"
+serialization = "1.10.0"
+appcompat = "1.8.0"
+activity = "1.13.0"
+junit = "4.13.2"
+media3 = "1.11.0"
+
+[libraries]
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+androidx-activity = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+junit = { module = "junit:junit", version.ref = "junit" }
+media3-transformer = { module = "androidx.media3:media3-transformer", version.ref = "media3" }
+media3-effect = { module = "androidx.media3:media3-effect", version.ref = "media3" }
+media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-plugin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

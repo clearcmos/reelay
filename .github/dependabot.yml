@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Actions are SHA-pinned, so dependabot is the only thing that will move them.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Versions live in gradle/libs.versions.toml. Grouped so one PR carries a coherent
+  # set: a Kotlin bump has to move its plugins together, and AndroidX or Media3 bumps
+  # may raise the compileSdk floor (Media3 1.10+ needs 36; the next floor will be 37,
+  # which the CI runner cannot install until it leaves preview). A red grouped PR is
+  # the signal to bump compileSdk deliberately, see CLAUDE.md.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*"]
+      androidx:
+        patterns: ["androidx.*"]
+      other-gradle:
+        patterns: ["*"]
+        exclude-patterns: ["org.jetbrains.kotlin*", "androidx.*"]
