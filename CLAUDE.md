@@ -104,17 +104,20 @@ release workflow rejects. `versionName` comes from the tag with its leading `v` 
 `versionCode` from the workflow run number, so it always increases.
 
 **The signing key is permanent.** The key that signs the first published release is the
-only key Android will ever accept as an upgrade for `com.clearcmos.reelay`. It was
-generated 2026-08-30 (RSA 4096, alias `reelay`, CN=Reelay O=clearcmos, SHA-256
+only key Android will ever accept as an upgrade for `com.clearcmos.reelay`. GitHub
+secrets cannot be read back, so whoever holds the key must keep a durable copy of the
+keystore and its password outside GitHub; losing them means every user has to uninstall
+before installing any later version. A fork publishing under its own application id
+generates its own key (`keytool -genkeypair -keyalg RSA -keysize 4096 -validity 10000`)
+and sets the four secrets above.
+
+Maintainer's copy: generated 2026-08-30 (RSA 4096, alias `reelay`, CN=Reelay O=clearcmos,
+public certificate SHA-256
 `30:C9:DE:19:5B:8A:CE:50:45:00:23:81:24:41:D0:B7:90:6F:A5:D2:18:22:C5:23:63:53:49:93:5F:E5:B2:12`),
-lives at `~/.local/share/reelay/release.jks` with its password in
-`~/.local/share/reelay/keystore-password` (both 0600), and is loaded into CI from
-`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
-`ANDROID_KEY_PASSWORD`. GitHub secrets cannot be read back, so the local copy and its
-1Password backup are the only recoverable copies. The backup was made 2026-08-30 in the
-Personal vault: document `REELAY_KEYSTORE` and password item `REELAY_KEYSTORE_PASSWORD`,
-same scheme as deskremote. It is deliberately a different key
-from deskremote's: one compromised key must not cover both apps.
+kept at `~/.local/share/reelay/release.jks` with its password beside it in
+`keystore-password` (both 0600), backed up the same day in the maintainer's password
+manager under `REELAY_KEYSTORE` and `REELAY_KEYSTORE_PASSWORD`. It is deliberately a
+different key from deskremote's: one compromised key must not cover both apps.
 
 A debug build installed on a phone carries the debug key; the release APK will not install
 over it. Uninstall the debug build first.
