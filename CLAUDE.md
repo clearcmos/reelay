@@ -1,23 +1,31 @@
 # Reelay
 
 Android app (Kotlin, minSdk 29, target/compile 36) that acts as a share target for
-Instagram reel links, downloads the reel at Instagram's best rendition, re-encodes it,
-and opens it in TikTok's editor so "Your Story" is one tap away. Published for others to
-install (signed APK on GitHub Releases); tier 2 of the house engineering standard.
+Instagram and Facebook reel links, downloads the reel at the service's best rendition,
+re-encodes it, and opens it in TikTok's editor so "Your Story" is one tap away. Published
+for others to install (signed APK on GitHub Releases); tier 2 of the house engineering
+standard.
 
 ## Structure
 
 - `app/src/main/kotlin/com/clearcmos/reelay/` - one file per step; see README "Layout".
-  `InstagramLink`, `ReelPageParser`, `DashManifest`, `EncodingBudget`, `Mp4EditLists`,
-  `ClipCache`, `LeadTrimAudioProcessor`, and `VideoDownloader` are JVM-testable and carry
-  the unit tests. The Android-bound classes are listed under "Test exemptions".
+  `ReelLink`, `ServerJsBlocks`, `InstagramPageParser`, `FacebookPageParser`, `DashManifest`,
+  `EncodingBudget`, `Mp4EditLists`, `ClipCache`, `LeadTrimAudioProcessor`, and
+  `VideoDownloader` are JVM-testable and carry the unit tests. The Android-bound classes are
+  listed under "Test exemptions". Both services are Meta, so both pages are read the same
+  way (`ServerJsBlocks`) and differ only in the JSON shape each parser walks.
 - `app/src/test/` - JUnit 4 tests. `FakeHttpServer` is a loopback HTTP/1.1 server on plain
   sockets (Android's unit-test compile classpath has no `com.sun.net.httpserver`).
-- `app/src/test/resources/reel_page.html` - trimmed copy of a real logged-out reel page
-  (shortcode CDUMkliABpa), captured 2026-08-29 with a Chrome TLS fingerprint. Keep the
-  Relay wrapper shape when refreshing it; the parser must not depend on the wrapper keys.
-  `dash_manifest.mpd` is the `video_dash_manifest` of reel DclewV1NSC9 (2026-08-30) cut to
-  four representations (1080p60, 720p, 240p, audio).
+- `app/src/test/resources/instagram_reel_page.html` - trimmed copy of a real logged-out
+  reel page (shortcode CDUMkliABpa), captured 2026-08-29 with a Chrome TLS fingerprint.
+  Keep the Relay wrapper shape when refreshing it; the parser must not depend on the
+  wrapper keys. `instagram_dash_manifest.mpd` is the `video_dash_manifest` of reel
+  DclewV1NSC9 (2026-08-30) cut to four representations (1080p60, 720p, 240p, audio).
+- `app/src/test/resources/facebook_reel_page.html` - same treatment for Facebook video
+  4028623617267790, captured 2026-09-12 with headless Chromium. It keeps the real
+  `FBReelsRootWithEntrypointQuery` wrapper, the page's own reel, and one `lasso_blue_feed`
+  reel, so the "up next" disambiguation stays covered. `facebook_dash_manifest.mpd` is that
+  reel's `dash_manifest_xml_string` cut to two AV1 representations plus the audio one.
 - `gradle/libs.versions.toml` - the only place dependency versions are declared.
   `app/gradle.lockfile`, `buildscript-gradle.lockfile`, `settings-gradle.lockfile` - the
   resolved graph, strict mode; the build fails when resolution drifts from them.
@@ -86,7 +94,7 @@ instead:
 
 - `MainActivity`, `ShareActivity`, `RelayException`: Activity lifecycle and views; the
   logic they call is in tested classes.
-- `InstagramWebFetcher`: needs a real Chromium WebView for the TLS fingerprint that is the
+- `MetaWebFetcher`: needs a real Chromium WebView for the TLS fingerprint that is the
   whole point of the class.
 - `VideoNormalizer`: drives Media3 Transformer and the device's hardware codecs.
 - `TikTokHandoff`: `PackageManager.resolveActivity` against installed apps.
@@ -185,6 +193,36 @@ Re-verify these before assuming they still hold; each is an external dependency.
   removes that dependency, see the decision log.
 - 2026-08-29, Instagram Android 444.0.0.46.85: "Share to" from a reel sends
   `text/plain` with the reel URL.
+- 2026-09-12, Facebook web: the logged-out reel page embeds the playback video in a
+  `data-sjs` block, same mechanism as Instagram, under
+  `data.video.creation_story.short_form_video_context.playback_video`. Its
+  `videoDeliveryLegacyFields` holds `browser_native_hd_url` (720p H.264 progressive),
+  `browser_native_sd_url` (360p) and `dash_manifest_xml_string`. The same block also
+  carries five `viewer.lasso_blue_feed` reels (the "up next" feed), each with its own
+  delivery object, so the parser has to pick; the page's own reel is the first candidate in
+  document order and its id matches the canonical URL. Plain curl with a Chrome UA gets
+  HTTP 400, so the TLS gate is the same as Instagram's but fails louder.
+- 2026-09-12, Facebook DASH: the manifest is AV1 (`av01.0.08M`) up to 1080x1920 at 30 fps
+  against a 720p H.264 progressive file, with one HE-AAC 44.1 kHz audio representation.
+  `frameRate` sits on the `AdaptationSet`, not the `Representation` as on Instagram. Each
+  `BaseURL` is a whole file despite the `SegmentBase` byte ranges: plain GETs returned
+  HTTP 200 and ffprobe read both renditions.
+- 2026-09-12, Facebook Android 577.0.0.50.72 share sheet: it lists only Meta destinations
+  plus a few pinned apps; the Android chooser is behind "More options..." at the end of the
+  horizontally scrolled app row. That chooser gets `text/plain` with
+  `https://www.facebook.com/share/r/<token>/`, which is what "Copy link" yields too, and
+  "TikTok Story" appears in it. The reel's own canonical URL is
+  `https://www.facebook.com/reel/<video id>/` and `<link rel="canonical">` points at
+  `/<page>/videos/<slug>/<video id>/`; `ReelLink` reads the id out of either.
+- 2026-09-12, end to end from the signed build on the S25, TikTok 46.8.3: sharing
+  `https://www.facebook.com/share/r/19LD8TJ5tr/` (video 4028623617267790, 7.4 s) opened
+  TikTok's editor with "Your Story" and "Next" on screen about 3 s later. Run once through
+  the real Facebook share sheet and twice with `am start`. logcat confirms
+  the split DASH path ran rather than the progressive fallback: `c2.qti.av1.decoder` plus
+  `c2.android.aac.decoder` into `c2.qti.avc.encoder` plus `c2.android.aac.encoder`, with
+  `TransformerInternal` init to release under a second and no fallback warning. Media3 logs
+  `Av1Config: Unsupported initial_display_delay_present_flag` while reading the AV1 codec
+  data; it is informational and the decode proceeds. Backed out without posting.
 
 ## Decision log
 
@@ -195,10 +233,10 @@ Re-verify these before assuming they still hold; each is an external dependency.
   loads.
 - 2026-08-29: Parse the server-rendered page rather than call `/api/graphql`. The page
   already contains the identical payload and needs no LSD or CSRF bootstrapping.
-- 2026-08-29: `ReelPageParser` walks every `data-sjs` block recursively for objects
-  with `video_versions` and `code`/`pk` instead of following the Relay path. The
-  wrapper keys (`adp_PolarisLoggedOutDesktopWWWPostRootContentQuery...`) are generated
-  and will change.
+- 2026-08-29: `InstagramPageParser` (then `ReelPageParser`) walks every `data-sjs` block
+  recursively for objects with `video_versions` and `code`/`pk` instead of following the
+  Relay path. The wrapper keys (`adp_PolarisLoggedOutDesktopWWWPostRootContentQuery...`)
+  are generated and will change.
 - 2026-08-29: Re-encode every downloaded reel with Media3 Transformer before the
   handoff (`VideoNormalizer`). Reason: the edit-list finding above; the output must not
   depend on the consumer honoring edit lists. Transformer applies
@@ -291,15 +329,33 @@ Re-verify these before assuming they still hold; each is an external dependency.
   notification and the grouped diff; the lockfile refresh is one command and the red check
   is honest. Renovate (which does update Gradle lockfiles) would need a GitHub App install
   and was not worth it for a repo with one module.
+- 2026-09-12: Facebook reels share the whole pipeline after the parse. The download,
+  re-encode, cache and handoff steps were already source-agnostic, so the addition is a
+  second link shape (`ReelLink` gained a `platform`), a second parser
+  (`FacebookPageParser`, beside `ReelPageParser` renamed `InstagramPageParser`), and a host
+  allowlist on the fetcher, renamed `MetaWebFetcher` because it now serves both.
+  `ServerJsBlocks` holds the `data-sjs` iteration both parsers need. `ReelMedia.shortcode`
+  became `ReelMedia.id` since Facebook numbers its videos.
+- 2026-09-12: Facebook's `video_owner` sits beside `playback_video`, not inside it, so
+  `ReelMedia.username` is null on the Facebook path. Nothing downstream reads it; carrying
+  parent context through the walk just to fill an unused field was not worth it.
+- 2026-09-12: `ReelLink` accepts Facebook `/reel/<id>`, `/<page>/videos/.../<id>`,
+  `/share/r|v/<token>` and `fb.watch/<token>`, and rejects `/share/p/` (a photo post) so a
+  shared post fails with "no reel link" instead of "no media". `/watch/?v=<id>` is not
+  matched; it is a watch video, not a reel, and no share path produces it.
+- 2026-09-12: `DashManifest` falls back to the enclosing `AdaptationSet` for `frameRate`.
+  Facebook only tags the set. The field is metadata (the re-encode reads the frame rate off
+  the downloaded file with `MediaMetadataRetriever`), but it was silently null for every
+  Facebook rendition.
 - 2026-08-30: Release builds are not minified. Media3 Transformer loads codecs
   reflectively and the APK is 17 MB either way; turning R8 on is a deliberate change with
   a device test, not a default.
 
 ## Follow-ups not started
 
-- Private or followers-only reels: let the user log in to Instagram inside a WebView
-  once; `CookieManager` persists the session and the same parser should work on the
-  logged-in page (unverified).
+- Private, followers-only, or friends-only reels: let the user log in to Instagram or
+  Facebook inside a WebView once; `CookieManager` persists the session and the same parsers
+  should work on the logged-in page (unverified).
 - Long downloads: move the fetch, download, and re-encode into a foreground service so
   leaving the dialog does not kill the run.
 - Auto-tap "Your Story" with an AccessibilityService for a fully unattended flow. Rejected

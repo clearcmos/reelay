@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
  * Re-encodes a downloaded reel into the shape TikTok's editor expects: H.264 without
  * B-frames, AAC-LC audio, both tracks starting at zero, no edit lists.
  *
- * Instagram's MP4s carry edit lists (a B-frame reorder offset on video, HE-AAC encoder
+ * Meta's MP4s carry edit lists (a B-frame reorder offset on video, HE-AAC encoder
  * priming on audio). Players that honor them, Instagram included, stay in sync; any
  * consumer that ignores them puts the tracks 50-115 ms apart (measured 2026-08-29). Media3
  * Transformer applies the edit lists while decoding; the AAC encoder's own priming is
@@ -40,9 +40,10 @@ import kotlinx.coroutines.withContext
  * writes for it is then neutralised ([Mp4EditLists]), so the output has no edit lists and
  * plays the same in every player.
  *
- * A [ReelSource.Split] input (Instagram's DASH renditions: VP9 video-only plus a separate
- * audio file) is muxed here into one H.264/AAC file; this is what lets Reelay hand TikTok
- * the reel at its native resolution and frame rate instead of the 720p30 progressive file.
+ * A [ReelSource.Split] input (the DASH renditions: a video-only VP9 or AV1 file plus a
+ * separate audio file) is muxed here into one H.264/AAC file; this is what lets Reelay hand
+ * TikTok the reel at its native resolution and frame rate instead of the 720p progressive
+ * file.
  */
 @OptIn(UnstableApi::class)
 class VideoNormalizer(private val context: Context) {
@@ -127,7 +128,7 @@ class VideoNormalizer(private val context: Context) {
                         .setAudioMimeType(MimeTypes.AUDIO_AAC)
                         // Encode portrait as portrait; the default encodes landscape plus a rotate-90 tag,
                         // which is one more piece of metadata a consumer must honor. Encoder failures fall
-                        // back to Instagram's progressive file in ShareActivity.
+                        // back to the progressive file in ShareActivity.
                         .setPortraitEncodingEnabled(true)
                         .addListener(
                             object : Transformer.Listener {

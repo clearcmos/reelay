@@ -1,13 +1,14 @@
 # Reelay
 
-Android share target that moves a public Instagram reel into TikTok's editor with the
-clip already loaded, so posting it to your TikTok Story is one tap.
+Android share target that moves a public Instagram or Facebook reel into TikTok's editor
+with the clip already loaded, so posting it to your TikTok Story is one tap.
 
-Neither app offers this path. Instagram's share sheet only sends a link, TikTok's editor
-only imports video files, and TikTok has no public API for stories. If the same clip is
-already on TikTok, TikTok's own "Add to Story" is the shorter route; Reelay is for a reel
-that lives on Instagram. It downloads the reel at the quality Instagram itself plays,
-re-encodes it into a file every player times identically, and hands it to TikTok.
+Neither app offers this path. Instagram and Facebook share sheets only send a link,
+TikTok's editor only imports video files, and TikTok has no public API for stories. If the
+same clip is already on TikTok, TikTok's own "Add to Story" is the shorter route; Reelay is
+for a reel that lives on Instagram or Facebook. It downloads the reel at the quality those
+apps themselves play, re-encodes it into a file every player times identically, and hands
+it to TikTok.
 
 ## Requirements
 
@@ -16,7 +17,8 @@ re-encodes it into a file every player times identically, and hands it to TikTok
   also recognised).
 - Android System WebView present and up to date (it ships with Android; Reelay uses it to
   fetch the reel page).
-- Instagram is optional. Reelay accepts a reel link from any app, or a pasted link.
+- Instagram and Facebook are optional. Reelay accepts a reel link from any app, or a
+  pasted link.
 
 ## Install
 
@@ -40,7 +42,10 @@ To build from source instead, see Development.
 
 ## Use
 
-1. In Instagram, open a reel, tap Share, and pick "TikTok Story" in the share sheet.
+1. In Instagram, open a reel, tap Share, and pick "TikTok Story". In Facebook, tap Share,
+   scroll the app row to the end, tap "More options...", and pick "TikTok Story" there;
+   Facebook's own sheet lists only its own destinations. "Copy link" followed by pasting
+   into Reelay works in both.
 2. Reelay shows a small progress dialog: fetching, downloading, re-encoding (a few seconds
    per minute of video), then opens TikTok.
 3. TikTok's editor appears with the clip. Tap "Your Story" to post, or "Next" for a
@@ -52,17 +57,18 @@ TikTok as is.
 
 ## How it works
 
-1. `ShareActivity` receives the `text/plain` share, finds the Instagram URL, and
-   normalises it (`/reel/`, `/reels/`, `/p/`, `/tv/`, and `/share/...` redirect links).
-2. A hidden WebView loads the reel's public page. Instagram serves the media JSON only to
-   clients with a browser TLS fingerprint; a plain HTTP library gets an empty shell, the
-   system WebView (Chromium) passes.
-3. The page embeds two things: a progressive MP4 capped at 720p30, and a DASH manifest
-   with renditions up to the upload's native size and frame rate (1080p60 for a 1080p60
-   reel). Reelay takes the best DASH video and audio renditions when present, otherwise
-   the progressive file.
+1. `ShareActivity` receives the `text/plain` share, finds the Instagram or Facebook URL,
+   and normalises it (Instagram `/reel/`, `/reels/`, `/p/`, `/tv/`; Facebook `/reel/<id>`
+   and `/<page>/videos/.../<id>`; the `/share/...` redirect links both services send).
+2. A hidden WebView loads the reel's public page. Both services serve the media JSON only
+   to clients with a browser TLS fingerprint; a plain HTTP library gets an empty shell
+   from Instagram and HTTP 400 from Facebook, the system WebView (Chromium) passes.
+3. The page embeds two things: a progressive MP4 capped at 720p, and a DASH manifest with
+   renditions up to the upload's native size and frame rate (1080p60 VP9 on Instagram,
+   1080p AV1 on Facebook). Reelay takes the best DASH video and audio renditions when
+   present, otherwise the progressive file.
 4. Media3 Transformer re-encodes on-device to H.264 without B-frames, AAC-LC, portrait
-   encoded as portrait, no edit lists. Instagram's files rely on MP4 edit lists for
+   encoded as portrait, no edit lists. Meta's files rely on MP4 edit lists for
    audio/video alignment; a consumer that ignores them puts lips 50-115 ms off the voice.
    Re-encoding bakes the alignment into the stream. The bitrate is twice the source
    (scaled for frame rate, 2 to 8 Mbps), which is visually lossless.
@@ -74,34 +80,33 @@ the start of every run.
 
 ## Privacy
 
-Reelay talks to two hosts only: `www.instagram.com` (the reel page) and Instagram's CDN
-(the video). No analytics, no accounts, no other network calls. The WebView stores
-Instagram's cookies like a browser would; clearing Reelay's storage in Android settings
-removes them. Nothing is sent to TikTok except the clip, through Android's share
-mechanism.
+Reelay talks to the service the link points at and nothing else: `www.instagram.com` or
+`www.facebook.com` for the reel page, and the matching `fbcdn.net` CDN for the video. No
+analytics, no accounts, no other network calls. The WebView stores those sites' cookies
+like a browser would; clearing Reelay's storage in Android settings removes them. Nothing
+is sent to TikTok except the clip, through Android's share mechanism.
 
 ## Limits
 
-- Public reels only. Private, followers-only, age-gated, or region-gated reels fail with
-  a message saying so. Logging in to Instagram inside Reelay is a possible follow-up, not
-  implemented.
+- Public reels only. Private, friends-only, age-gated, or region-gated reels fail with a
+  message saying so. Logging in inside Reelay is a possible follow-up, not implemented.
 - Photos and carousels are rejected; TikTok's share handler needs a single video.
 - The final "Your Story" tap happens in TikTok. Reelay never posts on its own.
 - TikTok's editor preview plays audio late for any imported clip, including a synthetic
   flash-and-beep test file, while the posted result of that same file is in sync. Judge
   sync on the posted result, not in the editor.
-- Instagram's page structure and TikTok's share activity are internal interfaces that can
-  change without notice. CLAUDE.md records what was verified and when.
+- Instagram's and Facebook's page structure, and TikTok's share activity, are internal
+  interfaces that can change without notice. CLAUDE.md records what was verified and when.
 
 ## Troubleshooting
 
-- "Instagram did not expose the video": the reel is not public, or Instagram changed its
-  page. Open the link in a browser while logged out; if the video does not play there,
+- "The reel page did not expose the video": the reel is not public, or the service changed
+  its page. Open the link in a browser while logged out; if the video does not play there,
   Reelay cannot fetch it either.
 - "TikTok is not installed": Reelay looks for the two TikTok package names above. A
   regional TikTok build with another package name is not recognised; open an issue with
   the package name.
-- Re-encoding fails on a device: Reelay logs a warning and hands TikTok Instagram's
+- Re-encoding fails on a device: Reelay logs a warning and hands TikTok the service's own
   progressive 720p file instead, so the flow still completes at lower quality.
 - Slow: the re-encode runs at roughly 4x real time on a 2025 flagship; a 60 s 1080p60
   reel takes about 15 s end to end.
@@ -140,19 +145,23 @@ request. Pushing a `v*` tag runs the release workflow, which builds a signed APK
 attaches it to a GitHub Release (signing material comes from repository secrets; see
 CLAUDE.md, "Release").
 
-Drive the share path over adb without Instagram:
+Drive the share path over adb without Instagram or Facebook:
 
 ```
 adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.instagram.com/reel/CDUMkliABpa/" -n com.clearcmos.reelay/.ShareActivity
+adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://www.facebook.com/reel/4028623617267790/" -n com.clearcmos.reelay/.ShareActivity
 ```
 
 ## Layout
 
 ```
 app/src/main/kotlin/com/clearcmos/reelay/
-  InstagramLink.kt           finds and classifies the Instagram URL in shared text
-  InstagramWebFetcher.kt     hidden WebView that fetches the page with a browser TLS stack
-  ReelPageParser.kt          pulls video_versions and the DASH manifest out of the page's JSON
+  ReelLink.kt                finds the Instagram or Facebook URL in shared text and classifies it
+  MetaWebFetcher.kt          hidden WebView that fetches the page with a browser TLS stack
+  ServerJsBlocks.kt          iterates the data-sjs JSON blocks both services server-render
+  ReelMedia.kt               what a parsed page yields, and the parse failures
+  InstagramPageParser.kt     pulls video_versions and the DASH manifest out of an Instagram page
+  FacebookPageParser.kt      pulls videoDeliveryLegacyFields out of a Facebook page
   DashManifest.kt            picks the best video and audio renditions from that manifest
   ClipCache.kt               app-private clip directory with age-based pruning
   CleanupJobService.kt       JobScheduler job that prunes the cache an hour after a handoff
@@ -164,8 +173,9 @@ app/src/main/kotlin/com/clearcmos/reelay/
   TikTokHandoff.kt           builds the ACTION_SEND intent for TikTok's share activity
   ShareActivity.kt           share-sheet entry point tying the steps together
   MainActivity.kt            launcher screen with a paste-a-link test path
-app/src/test/                JVM unit tests; reel_page.html and dash_manifest.mpd are trimmed
-                             real Instagram responses, FakeHttpServer serves the downloader tests
+app/src/test/                JVM unit tests; the *_reel_page.html and *_dash_manifest.mpd
+                             resources are trimmed real responses, FakeHttpServer serves the
+                             downloader tests
 .github/workflows/           ci.yml (lint, tests, coverage, build) and release.yml (signed APK on tag)
 flake.nix                    the development toolchain
 ```
@@ -173,8 +183,9 @@ flake.nix                    the development toolchain
 ## Contributing
 
 Bug reports and questions are welcome as GitHub issues, with the Android version, TikTok
-version, and whether the reel is public. Please open an issue to discuss a change before
-sending a pull request; this is a small personal tool and not every feature fits.
+version, which service the reel is on, and whether it is public. Please open an issue to
+discuss a change before sending a pull request; this is a small personal tool and not every
+feature fits.
 
 ## License
 

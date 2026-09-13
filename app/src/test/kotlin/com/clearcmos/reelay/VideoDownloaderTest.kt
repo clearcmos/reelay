@@ -84,7 +84,7 @@ class VideoDownloaderTest {
     @Test
     fun `requests carry the browser user agent the page was fetched with`() = runBlocking {
         VideoDownloader(cache).download(media())
-        assertEquals(InstagramWebFetcher.USER_AGENT, server.requestHeaders["/progressive.mp4"]?.get("user-agent"))
+        assertEquals(MetaWebFetcher.USER_AGENT, server.requestHeaders["/progressive.mp4"]?.get("user-agent"))
     }
 
     private fun media(
@@ -92,7 +92,7 @@ class VideoDownloaderTest {
         dashVideo: String? = null,
         dashAudio: String? = null
     ) = ReelMedia(
-        shortcode = "ABC",
+        id = "ABC",
         videoUrl = progressive,
         width = 720,
         height = 1280,

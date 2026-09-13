@@ -1,5 +1,5 @@
 {
-  description = "Reelay: share an Instagram reel to your TikTok Story from Android's share sheet";
+  description = "Reelay: share an Instagram or Facebook reel to your TikTok Story from Android's share sheet";
 
   inputs.nixpkgs.url = "https://flakehub.com/f/DeterminateSystems/nixpkgs-weekly/*.tar.gz";
 
