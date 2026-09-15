@@ -271,9 +271,11 @@ Re-verify these before assuming they still hold; each is an external dependency.
 - 2026-08-29: No AccessibilityService automation of the "Your Story" tap in this
   version. It would make the flow fully unattended but is brittle against TikTok UI
   changes and posts without a review step. Revisit if the manual tap becomes annoying.
-- 2026-08-29: Toolchain pinned to AGP 8.13.2 + Kotlin 2.3.21 + Gradle 8.14.4 (the
-  nixpkgs default) rather than AGP 9.x, which needs Gradle 9 and changes Kotlin
-  plugin wiring. Bump deliberately, together.
+- 2026-08-29: Toolchain pinned to AGP 8.x + Gradle 8.14.4 (the nixpkgs default) rather
+  than AGP 9.x, which needs Gradle 9 and changes Kotlin plugin wiring. Bump deliberately,
+  together. Kotlin moved 2.3.21 to 2.4.10 with coroutines 1.11.0 and serialization 1.11.0
+  on 2026-09-15 (dependabot PR #1, lockfiles refreshed on the branch); AGP stayed 8.13.2
+  and the full verification passed unchanged.
 - 2026-08-29: CI installs Gradle with `setup-gradle` and uses the runner's Android SDK
   instead of `nix develop`, avoiding a 1 GB SDK download on every run. The pinned
   Gradle version must match `nixpkgs.gradle` in the devShell.
