@@ -5,12 +5,14 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 
 /**
- * The parts of Instagram's `video_dash_manifest` that matter here.
+ * The parts of Meta's inline DASH manifest that matter here.
  *
- * Instagram's progressive `video_versions` MP4 tops out at 720p30; the app itself plays
- * DASH renditions that go up to the upload's native size and frame rate (1080p60 seen
- * 2026-08-30). Each representation is a single file behind `BaseURL`, downloadable with a
- * plain GET, video and audio separately.
+ * The progressive MP4 each service exposes tops out at 720p (Instagram 720p30 in
+ * `video_versions`, Facebook 720p in `browser_native_hd_url`); the apps themselves play
+ * DASH renditions that go up to the upload's native size and frame rate (Instagram 1080p60
+ * VP9 seen 2026-08-30, Facebook 1080p30 AV1 seen 2026-09-12). Each representation is a
+ * single file behind `BaseURL`, downloadable with a plain GET, video and audio separately;
+ * the `SegmentBase` byte ranges Facebook adds describe that same file and can be ignored.
  */
 data class DashManifest(val video: List<Representation>, val audio: List<Representation>) {
     data class Representation(
@@ -50,7 +52,10 @@ data class DashManifest(val video: List<Representation>, val audio: List<Represe
                         bandwidth = element.getAttribute("bandwidth").toLongOrNull() ?: 0L,
                         width = element.getAttribute("width").toIntOrNull(),
                         height = element.getAttribute("height").toIntOrNull(),
-                        frameRate = parseFrameRate(element.getAttribute("frameRate"))
+                        // Instagram tags the representation, Facebook only the enclosing AdaptationSet.
+                        frameRate =
+                        parseFrameRate(element.getAttribute("frameRate"))
+                            ?: parseFrameRate((element.parentNode as? Element)?.getAttribute("frameRate"))
                     )
                 }
             return DashManifest(

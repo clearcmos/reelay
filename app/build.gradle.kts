@@ -93,7 +93,7 @@ kover {
                     "com.clearcmos.reelay.MainActivity*",
                     "com.clearcmos.reelay.ShareActivity*",
                     "com.clearcmos.reelay.RelayException",
-                    "com.clearcmos.reelay.InstagramWebFetcher*",
+                    "com.clearcmos.reelay.MetaWebFetcher*",
                     "com.clearcmos.reelay.VideoNormalizer*",
                     "com.clearcmos.reelay.TikTokHandoff*",
                     "com.clearcmos.reelay.CleanupJobService*"

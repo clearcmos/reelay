@@ -6,15 +6,17 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ReelPageParserTest {
-    private val realPage = checkNotNull(javaClass.getResourceAsStream("/reel_page.html")).bufferedReader().use {
+class InstagramPageParserTest {
+    private val realPage = checkNotNull(
+        javaClass.getResourceAsStream("/instagram_reel_page.html")
+    ).bufferedReader().use {
         it.readText()
     }
 
     @Test
     fun `parses the media embedded in a real logged out reel page`() {
-        val media = ReelPageParser.parse(realPage, "CDUMkliABpa")
-        assertEquals("CDUMkliABpa", media.shortcode)
+        val media = InstagramPageParser.parse(realPage, "CDUMkliABpa")
+        assertEquals("CDUMkliABpa", media.id)
         assertEquals("clippedinandfree", media.username)
         assertEquals(720, media.width)
         assertEquals(1280, media.height)
@@ -23,14 +25,14 @@ class ReelPageParserTest {
 
     @Test
     fun `falls back to the only media when the expected shortcode is absent`() {
-        assertEquals("CDUMkliABpa", ReelPageParser.parse(realPage, "SOMETHINGELSE").shortcode)
+        assertEquals("CDUMkliABpa", InstagramPageParser.parse(realPage, "SOMETHINGELSE").id)
     }
 
     @Test
     fun `carousel or photo media is rejected as not a video`() {
         val carousel = realPage.replace("\"media_type\":2", "\"media_type\":8")
         val error =
-            assertThrows(ReelParseException.NotVideo::class.java) { ReelPageParser.parse(carousel, "CDUMkliABpa") }
+            assertThrows(ReelParseException.NotVideo::class.java) { InstagramPageParser.parse(carousel, "CDUMkliABpa") }
         assertEquals(8, error.mediaType)
     }
 
@@ -38,13 +40,13 @@ class ReelPageParserTest {
     fun `page without media json reports no media`() {
         val shell =
             page("""{"require":[["ScheduledServerJS","handle",null,[{"__bbox":{"define":[],"require":[]}}]]]}""")
-        assertThrows(ReelParseException.NoMedia::class.java) { ReelPageParser.parse(shell, "X") }
+        assertThrows(ReelParseException.NoMedia::class.java) { InstagramPageParser.parse(shell, "X") }
     }
 
     @Test
     fun `login wall is called out in the error`() {
         val wall = "<html><head><link href=\"/accounts/login/\"></head><body></body></html>"
-        val error = assertThrows(ReelParseException.NoMedia::class.java) { ReelPageParser.parse(wall, "X") }
+        val error = assertThrows(ReelParseException.NoMedia::class.java) { InstagramPageParser.parse(wall, "X") }
         assertTrue(error.message, "login" in error.message.orEmpty())
     }
 
@@ -54,7 +56,7 @@ class ReelPageParserTest {
             """[{"type":103,"width":480,"height":854,"url":"https://cdn/low"},""" +
                 """{"type":101,"width":1080,"height":1920,"url":"https://cdn/high"},""" +
                 """{"type":102,"width":1080,"height":1920,"url":"https://cdn/high-dup"}]"""
-        val media = ReelPageParser.parse(page(mediaJson("AAA", versions = versions)), "AAA")
+        val media = InstagramPageParser.parse(page(mediaJson("AAA", versions = versions)), "AAA")
         assertEquals("https://cdn/high", media.videoUrl)
         assertEquals(1080, media.width)
     }
@@ -66,8 +68,8 @@ class ReelPageParserTest {
                 mediaJson("OTHER", versions = """[{"type":101,"url":"https://cdn/other"}]"""),
                 mediaJson("WANT", versions = """[{"type":101,"url":"https://cdn/want"}]""")
             )
-        assertEquals("https://cdn/want", ReelPageParser.parse(html, "WANT").videoUrl)
-        assertEquals("https://cdn/other", ReelPageParser.parse(html, null).videoUrl)
+        assertEquals("https://cdn/want", InstagramPageParser.parse(html, "WANT").videoUrl)
+        assertEquals("https://cdn/other", InstagramPageParser.parse(html, null).videoUrl)
     }
 
     @Test
@@ -77,7 +79,7 @@ class ReelPageParserTest {
             "<html><head><script type=\"application/json\" data-content-len=\"5\" data-sjs=\"\">" +
                 mediaJson("BBB", versions = """[{"type":101,"url":"https://cdn/b"}]""") +
                 "</script></head></html>"
-        assertEquals("https://cdn/b", ReelPageParser.parse(html, "BBB").videoUrl)
+        assertEquals("https://cdn/b", InstagramPageParser.parse(html, "BBB").videoUrl)
     }
 
     @Test
@@ -101,7 +103,7 @@ class ReelPageParserTest {
                 """"original_width":1080,"original_height":1920,""" +
                 """"video_versions":[{"type":101,"url":"https://cdn/progressive.mp4"}],""" +
                 """"video_dash_manifest":"$escaped","user":{"username":"u"}}}}"""
-        val media = ReelPageParser.parse(page(json), "DDD")
+        val media = InstagramPageParser.parse(page(json), "DDD")
         assertEquals("https://cdn/progressive.mp4", media.videoUrl)
         assertEquals("https://cdn/v1080.mp4?a=1&b=2", media.dashVideo?.url)
         assertEquals("https://cdn/a.mp4", media.dashAudio?.url)
@@ -111,7 +113,7 @@ class ReelPageParserTest {
 
     @Test
     fun `page without a dash manifest still yields the progressive url`() {
-        val media = ReelPageParser.parse(realPage, "CDUMkliABpa")
+        val media = InstagramPageParser.parse(realPage, "CDUMkliABpa")
         assertNull(media.dashVideo)
         assertEquals(false, media.hasDash)
     }
@@ -119,7 +121,7 @@ class ReelPageParserTest {
     @Test
     fun `versions without a url are skipped and none left is no media`() {
         val html = page(mediaJson("CCC", versions = """[{"type":101},{"type":102,"url":""}]"""))
-        assertThrows(ReelParseException.NoMedia::class.java) { ReelPageParser.parse(html, "CCC") }
+        assertThrows(ReelParseException.NoMedia::class.java) { InstagramPageParser.parse(html, "CCC") }
     }
 
     private fun page(vararg blocks: String): String = blocks.joinToString("") {

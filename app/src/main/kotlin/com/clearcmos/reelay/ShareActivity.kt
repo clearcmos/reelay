@@ -20,9 +20,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Share-sheet entry point: turns a shared Instagram link (or an already shared video)
- * into a TikTok share, so the editor opens with the clip loaded and "Your Story" is
- * one tap away.
+ * Share-sheet entry point: turns a shared Instagram or Facebook reel link (or an already
+ * shared video) into a TikTok share, so the editor opens with the clip loaded and
+ * "Your Story" is one tap away.
  */
 class ShareActivity : AppCompatActivity() {
     private lateinit var progress: ProgressBar
@@ -58,16 +58,21 @@ class ShareActivity : AppCompatActivity() {
     }
 
     private suspend fun resolveVideo(intent: Intent): Uri {
-        val link = InstagramLink.parse(intent.getStringExtra(Intent.EXTRA_TEXT))
+        val link = ReelLink.parse(intent.getStringExtra(Intent.EXTRA_TEXT))
         if (link == null) {
             val stream = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
             if (stream != null && intent.type?.startsWith("video/") == true) return stream
             throw RelayException(getString(R.string.error_no_link))
         }
         setStatus(R.string.status_fetching)
-        val page = InstagramWebFetcher(this).fetch(link.url)
-        val shortcode = link.shortcode ?: InstagramLink.fromUrl(page.finalUrl)?.shortcode
-        val media = ReelPageParser.parse(page.html, shortcode)
+        val page = MetaWebFetcher(this).fetch(link.url)
+        // A /share/ link only names the media once it has resolved.
+        val id = link.id ?: ReelLink.fromUrl(page.finalUrl)?.id
+        val media =
+            when (link.platform) {
+                ReelPlatform.INSTAGRAM -> InstagramPageParser.parse(page.html, id)
+                ReelPlatform.FACEBOOK -> FacebookPageParser.parse(page.html, id)
+            }
 
         setStatus(R.string.status_downloading)
         val cache = ClipCache.of(this)
@@ -77,7 +82,7 @@ class ShareActivity : AppCompatActivity() {
 
         setStatus(R.string.status_normalizing)
         val clip =
-            normalizeOrNull(source, cache.file("reelay-${media.shortcode}.mp4"))
+            normalizeOrNull(source, cache.file("reelay-${media.id}.mp4"))
                 ?: (source as? ReelSource.Single)?.file
                 ?: downloader.downloadProgressive(media).file
         source.files.filter { it != clip }.forEach { it.delete() }
@@ -87,7 +92,7 @@ class ShareActivity : AppCompatActivity() {
         return FileProvider.getUriForFile(this, FILE_AUTHORITY, clip)
     }
 
-    /** Re-encodes for TikTok; null when the device encoder fails, so the caller can fall back to Instagram's own file. */
+    /** Re-encodes for TikTok; null when the device encoder fails, so the caller can fall back to the source file. */
     private suspend fun normalizeOrNull(source: ReelSource, output: File): File? = try {
         VideoNormalizer(this).normalize(source, output) { percent ->
             status.text = getString(R.string.status_normalizing_progress, percent)
@@ -95,7 +100,7 @@ class ShareActivity : AppCompatActivity() {
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        Log.w(TAG, "Re-encoding failed; falling back to Instagram's progressive file", e)
+        Log.w(TAG, "Re-encoding failed; falling back to the progressive file", e)
         output.delete()
         null
     }

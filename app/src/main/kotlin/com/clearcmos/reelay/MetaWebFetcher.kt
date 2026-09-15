@@ -21,14 +21,16 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * Loads an Instagram page through a hidden WebView and returns its server-rendered HTML.
+ * Loads an Instagram or Facebook page through a hidden WebView and returns its
+ * server-rendered HTML.
  *
- * Instagram only serves the media JSON to clients whose TLS handshake looks like a
- * browser; OkHttp and curl receive an empty HTML shell (verified 2026-08-29, see
- * CLAUDE.md). Android System WebView is Chromium, so its handshake passes. Every
- * subresource request is answered with an empty body so only the document is fetched.
+ * Meta serves the media JSON only to clients whose TLS handshake looks like a browser;
+ * OkHttp and curl receive an empty HTML shell from Instagram and HTTP 400 from Facebook
+ * (verified 2026-08-29 and 2026-09-12, see CLAUDE.md). Android System WebView is Chromium,
+ * so its handshake passes. Every subresource request is answered with an empty body so
+ * only the document is fetched.
  */
-class InstagramWebFetcher(private val context: Context) {
+class MetaWebFetcher(private val context: Context) {
     data class Page(val finalUrl: String, val html: String)
 
     suspend fun fetch(url: String): Page = withContext(Dispatchers.Main) {
@@ -36,7 +38,7 @@ class InstagramWebFetcher(private val context: Context) {
         try {
             withTimeout(TIMEOUT_MS) { load(webView, url) }
         } catch (e: TimeoutCancellationException) {
-            throw IOException("Instagram page did not load within ${TIMEOUT_MS / 1000}s", e)
+            throw IOException("The reel page did not load within ${TIMEOUT_MS / 1000}s", e)
         } finally {
             webView.stopLoading()
             webView.destroy()
@@ -59,14 +61,12 @@ class InstagramWebFetcher(private val context: Context) {
                     return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
                 }
 
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    val host = request.url.host ?: return true
-                    return !(host == "instagram.com" || host.endsWith(".instagram.com"))
-                }
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                    !isMetaHost(request.url.host)
 
                 override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                     if (request.isForMainFrame && cont.isActive) {
-                        cont.resumeWithException(IOException("Instagram page failed to load: ${error.description}"))
+                        cont.resumeWithException(IOException("The reel page failed to load: ${error.description}"))
                     }
                 }
 
@@ -76,7 +76,7 @@ class InstagramWebFetcher(private val context: Context) {
                     errorResponse: WebResourceResponse
                 ) {
                     if (request.isForMainFrame && cont.isActive) {
-                        cont.resumeWithException(IOException("Instagram returned HTTP ${errorResponse.statusCode}"))
+                        cont.resumeWithException(IOException("The reel page returned HTTP ${errorResponse.statusCode}"))
                     }
                 }
 
@@ -90,7 +90,7 @@ class InstagramWebFetcher(private val context: Context) {
                         }.fold(
                             onSuccess = { cont.resume(it) },
                             onFailure = {
-                                cont.resumeWithException(IOException("Could not read the Instagram page", it))
+                                cont.resumeWithException(IOException("Could not read the reel page", it))
                             }
                         )
                     }
@@ -103,7 +103,15 @@ class InstagramWebFetcher(private val context: Context) {
     companion object {
         private const val TIMEOUT_MS = 25_000L
 
-        /** Desktop Chrome UA; the same UA plus a Chromium TLS stack is what Instagram serves media JSON to. */
+        /** Hosts the WebView is allowed to navigate to; a share link redirects within this set. */
+        private val HOSTS = listOf("instagram.com", "instagr.am", "facebook.com", "fb.watch")
+
+        private fun isMetaHost(host: String?): Boolean {
+            val name = host?.lowercase() ?: return false
+            return HOSTS.any { name == it || name.endsWith(".$it") }
+        }
+
+        /** Desktop Chrome UA; the same UA plus a Chromium TLS stack is what Meta serves media JSON to. */
         const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
     }

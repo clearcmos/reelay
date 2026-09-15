@@ -33,7 +33,7 @@
             android:exported="true"
             android:label="@string/share_target_label"
             android:theme="@style/Theme.Reelay.Dialog">
-            <!-- Instagram's "Share to" sends the reel URL as text/plain. -->
+            <!-- Instagram's and Facebook's "Share to" send the reel URL as text/plain. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />

@@ -9,7 +9,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
-/** What was fetched for one reel: either Instagram's muxed 720p file or the split full-quality renditions. */
+/** What was fetched for one reel: either the service's muxed progressive file or the split full-quality renditions. */
 sealed class ReelSource {
     abstract val files: List<File>
 
@@ -23,19 +23,20 @@ sealed class ReelSource {
 }
 
 /**
- * Streams reel media from Instagram's CDN into the clip cache.
+ * Streams reel media from Meta's CDN into the clip cache.
  *
- * The CDN is not fingerprint-gated (verified 2026-08-29), so the platform HTTP client is
- * enough. When the page offered DASH renditions the video and audio files are fetched in
- * parallel; a failure there falls back to the progressive file.
+ * The CDN is not fingerprint-gated the way the page is (verified 2026-08-29 for Instagram
+ * and 2026-09-12 for Facebook), so the platform HTTP client is enough. When the page
+ * offered DASH renditions the video and audio files are fetched in parallel; a failure
+ * there falls back to the progressive file.
  */
 class VideoDownloader(private val cache: ClipCache) {
     suspend fun download(media: ReelMedia): ReelSource {
         val dashVideo = media.dashVideo
         val dashAudio = media.dashAudio
         if (dashVideo != null && dashAudio != null) {
-            val videoTarget = cache.file("${media.shortcode}-video.mp4")
-            val audioTarget = cache.file("${media.shortcode}-audio.mp4")
+            val videoTarget = cache.file("${media.id}-video.mp4")
+            val audioTarget = cache.file("${media.id}-audio.mp4")
             val split =
                 runCatching {
                     coroutineScope {
@@ -53,7 +54,7 @@ class VideoDownloader(private val cache: ClipCache) {
     }
 
     suspend fun downloadProgressive(media: ReelMedia): ReelSource.Single =
-        ReelSource.Single(fetch(media.videoUrl, cache.file("${media.shortcode}-source.mp4")))
+        ReelSource.Single(fetch(media.videoUrl, cache.file("${media.id}-source.mp4")))
 
     private suspend fun fetch(url: String, target: File): File = withContext(Dispatchers.IO) {
         val connection =
@@ -61,11 +62,11 @@ class VideoDownloader(private val cache: ClipCache) {
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
                 instanceFollowRedirects = true
-                setRequestProperty(USER_AGENT_HEADER, InstagramWebFetcher.USER_AGENT)
+                setRequestProperty(USER_AGENT_HEADER, MetaWebFetcher.USER_AGENT)
             }
         try {
             val code = connection.responseCode
-            if (code !in 200..299) throw IOException("Instagram CDN returned HTTP $code")
+            if (code !in 200..299) throw IOException("CDN returned HTTP $code")
             target.outputStream().use { sink -> connection.inputStream.use { it.copyTo(sink) } }
         } catch (e: Exception) {
             target.delete()
