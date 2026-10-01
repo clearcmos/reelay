@@ -8,7 +8,7 @@ serialization = "1.11.0"
 appcompat = "1.8.0"
 activity = "1.13.0"
 junit = "4.13.2"
-media3 = "1.11.0"
+media3 = "1.11.1"
 
 [libraries]
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
